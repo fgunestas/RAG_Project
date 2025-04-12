@@ -1,12 +1,6 @@
-from query import query
-def start():
-    ask()
+from components.rag_pipeline import rag_query
 
-def ask():
-    while True:
-        user_input = input("Q:")
-        response= query(user_input)
-        print("A:", response)
-
-if __name__=="__main__":
-    start()
+if __name__ == "__main__":
+    user_query = input("Soru: ")
+    response = rag_query(user_query)
+    print("\nYanıt:\n", response)

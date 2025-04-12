@@ -1,4 +1,5 @@
 import os
+from re import search
 
 import bs4
 from dotenv import load_dotenv
@@ -19,31 +20,30 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.prompts import PromptTemplate,ChatPromptTemplate
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig,pipeline
 from langchain.load import dumps, loads
-model_name = 'HuggingFaceH4/zephyr-7b-beta'
-
-bnb_config = BitsAndBytesConfig(
-    load_in_4bit=True,
-    bnb_4bit_use_double_quant=True,
-    bnb_4bit_quant_type="nf4",
-    bnb_4bit_compute_dtype=torch.bfloat16
-)
-model = AutoModelForCausalLM.from_pretrained(model_name,quantization_config=bnb_config)
-tokenizer = AutoTokenizer.from_pretrained(model_name)
+from langchain_ollama import ChatOllama, OllamaEmbeddings
+from langchain_community.document_loaders import PyMuPDFLoader
 
 
+loader = PyMuPDFLoader(r"*.pdf")
+loader.load()
 
-text_generation_pipeline = pipeline(
-    model=model,
-    tokenizer=tokenizer,
-    task="text-generation",
-    temperature=0.2,
-    do_sample=True,
-    repetition_penalty=1.1,
-    return_full_text=True,
-    max_new_tokens=400,
-)
+model_name = "llama3.2:3b"
 
-llm = HuggingFacePipeline(pipeline=text_generation_pipeline)
+llm = ChatOllama(model=model_name, base_url="http://localhost:8080")
+
+
+
+embeddings= OllamaEmbeddings(model="nomic-embed-text",base_url='http://localhost:8080')
+db_name="test"
+vector_store=FAISS.load_local(db_name, embeddings, allow_dangerous_deserialization=True)
+
+retriever= vector_store.as_retriever(search_type="similarity", search_kwargs={'k':5})
+
+
+
+
+
+
 
 multi_query_template = PromptTemplate(
     input_variables=["question"],
