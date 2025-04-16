@@ -23,7 +23,7 @@ def get_vectorstore():
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
     chunks = text_splitter.split_documents(docs)
 
-    embedding_model = OllamaEmbeddings(model="llama3.2:3b", base_url="http://localhost:8080")
+    embedding_model = OllamaEmbeddings(model="llama3.2:3b", base_url="http://localhost:11434")
 
     vector = embedding_model.embed_query(chunks[0].page_content)
     vector_store = FAISS(

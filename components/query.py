@@ -29,11 +29,11 @@ loader.load()
 
 model_name = "llama3.2:3b"
 
-llm = ChatOllama(model=model_name, base_url="http://localhost:8080")
+llm = ChatOllama(model=model_name, base_url="http://localhost:11434")
 
 
 
-embeddings= OllamaEmbeddings(model="nomic-embed-text",base_url='http://localhost:8080')
+embeddings= OllamaEmbeddings(model="nomic-embed-text",base_url='http://localhost:11434')
 db_name="test"
 vector_store=FAISS.load_local(db_name, embeddings, allow_dangerous_deserialization=True)
 

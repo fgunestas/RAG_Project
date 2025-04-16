@@ -1,6 +1,7 @@
 from langchain.chains import RetrievalQA
 from langchain_ollama import ChatOllama
-from .retriever import get_vectorstore
+from components.retriever import get_vectorstore
+
 
 llm = ChatOllama(model="llama3.2:3b", base_url="http://localhost:8080")
 
