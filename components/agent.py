@@ -1,20 +1,15 @@
-from langchain.tools.retriever import create_retriever_tool
 from components.retriever import get_vectorstore
-
 from typing import Annotated, Sequence, TypedDict, Literal
-from langchain_core.messages import BaseMessage
+from pydantic import BaseModel, Field
+
+
+from langchain.tools.retriever import create_retriever_tool
 from langgraph.graph.message import add_messages
-
-
-
 from langchain import hub
 from langchain_core.messages import  BaseMessage, HumanMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
-
 from pydantic import BaseModel, Field
-from langgraph.prebuilt import tools_condition
-
 from langchain_ollama import ChatOllama
 
 llm = ChatOllama(model="llama3.2:3b", base_url="http://localhost:11434")
@@ -23,6 +18,8 @@ retriever = get_vectorstore().as_retriever(search_type="similarity", search_kwar
 
 #To use it as an agent, you must make the retriever a tool.
 retriever_tool=create_retriever_tool(retriever, "kendo", "returns information about the kendo introductions")
+tools=[retriever_tool]
+
 
 class State(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
@@ -84,7 +81,7 @@ def grade_documents(state) -> Literal["generate", "rewrite"]:
     else:
         return "rewrite"
 
-def agent(state,tools):
+def agent(state):
 
     messages = state["messages"]
 

@@ -1,10 +1,9 @@
-from langchain_community.vectorstores import FAISS
 from langchain_ollama import OllamaEmbeddings
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-import faiss
 from langchain_community.vectorstores import FAISS
 from langchain_community.docstore.in_memory import InMemoryDocstore
+import faiss
 import os
 
 def get_vectorstore():
@@ -23,7 +22,7 @@ def get_vectorstore():
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
     chunks = text_splitter.split_documents(docs)
 
-    embedding_model = OllamaEmbeddings(model="llama3.2:3b", base_url="http://localhost:11434")
+    embedding_model = OllamaEmbeddings(model="nomic-embed-text", base_url="http://localhost:11434")
 
     vector = embedding_model.embed_query(chunks[0].page_content)
     vector_store = FAISS(
