@@ -19,8 +19,6 @@ retriever = get_vectorstore().as_retriever(search_type="similarity", search_kwar
 #To use it as an agent, you must make the retriever a tool.
 retriever_tool=create_retriever_tool(retriever, "kendo", "returns information about the kendo introductions")
 tools=[retriever_tool]
-
-
 class State(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
 

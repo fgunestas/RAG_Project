@@ -25,12 +25,9 @@ def get_vectorstore():
     embedding_model = OllamaEmbeddings(model="nomic-embed-text", base_url="http://localhost:11434")
 
     vector = embedding_model.embed_query(chunks[0].page_content)
-    vector_store = FAISS(
-        embedding_function=embedding_model,
-        index=faiss.IndexFlatIP(len(vector)),
-        docstore=InMemoryDocstore(),
-        index_to_docstore_id={}
-    )
+    vector_store = FAISS.from_documents(chunks, embedding_model)
+
+
 
 
     return vector_store
