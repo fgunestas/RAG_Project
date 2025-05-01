@@ -7,7 +7,7 @@ from langchain_core.messages import HumanMessage
 
 
 
-def rag_query(query: str):
+def rag_query(query: str,test=0):
     graph_builder = StateGraph(State)
 
     graph_builder.add_node("agent", agent)
@@ -43,11 +43,12 @@ def rag_query(query: str):
     from pprint import pprint
     for output in graph.stream(query):
         for key, value in output.items():
-            pprint(f"Output from node '{key}':")
-            pprint("----")
-            pprint(value["messages"][-1], indent=4, width=120)
+            if test==1:
+                pprint(f"Output from node '{key}':")
+                pprint(value["messages"][-1])
             final_state = value
-        pprint("\n------\n")
+        if test == 1:
+            pprint("------")
 
     messages = final_state["messages"]
     final_message = messages[-1]

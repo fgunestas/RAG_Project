@@ -72,7 +72,6 @@ def grade_documents(state) -> Literal["generate", "rewrite"]:
     scored_result = chain.invoke({"question": question, "context": docs})
 
     score = scored_result.binary_score
-    print(score)
     if score == "yes":
         return "generate"
 
