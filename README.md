@@ -20,10 +20,8 @@
 🧠 **LLM Modeli**: `llama3` (Ollama)  
 🔍 **Embedding**: `nomic-embed-text` (Ollama)  
 🔧 **Graph Mantığı**: `LangGraph` ile yönlendirilmiş RAG & Tool-Calling Ajanı  
-🧪 **Notebook**: Jupyter üzerinden adım adım gösterim
+🧪 **Notebook**: 📖 [Jupyter](https://nbviewer.org/github/fgunestas/RAG_Project/blob/main/test_notebook.ipynb) üzerinden adım adım gösterim
 
 ---
 
 > 🎯 **Hedef**: Belgelerden anlamlı bilgi çıkaran, esnek ve geliştirilebilir bir bilgi sorgulama sistemi kurmak.
-
-
