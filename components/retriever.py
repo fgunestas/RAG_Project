@@ -19,13 +19,18 @@ def get_vectorstore():
         temp = loader.load()
         docs.extend(temp)
 
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=500,
+        chunk_overlap=100,
+        separators=["\n\n", "\n", ".", "!", "?"]
+    )
     chunks = text_splitter.split_documents(docs)
 
     embedding_model = OllamaEmbeddings(model="nomic-embed-text", base_url="http://localhost:11434")
 
-    vector = embedding_model.embed_query(chunks[0].page_content)
+    #vector = embedding_model.embed_query(chunks[0].page_content)
     vector_store = FAISS.from_documents(chunks, embedding_model)
+
 
 
 
