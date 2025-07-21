@@ -36,6 +36,7 @@ class AgentState(TypedDict):
     llm_output: str
     search_output: str
     context: str
+    grader_decision: str
 
 
 # === Nodes ===
@@ -53,27 +54,24 @@ def should_fallback(state: AgentState) -> str:
         return "llm_rag"
 
 def grader_node(state: AgentState) -> AgentState:
-    print(">> Grader Node çalışıyor...")
+    print(">> Grader Node is working...")
     question = state["input"]
     context = state["context"]
 
-    grader_prompt = ChatPromptTemplate.from_template("""You are an evaluation assistant that checks whether a given context contains sufficient and relevant information to accurately answer a user's question.
+    grader_prompt = ChatPromptTemplate.from_template("""
+You are an AI assistant that grades the relevance of a document to a user question.
 
-Here is the user question:
-{question}
+## Context
+- Document: {context}
+- Question: {question}
 
-Here is the context retrieved from internal documents:
-{context}
+## Task:
+Respond ONLY with one word, either:
+- yes → if the document is relevant
+- no → if the document is not relevant
 
-Evaluate the following:
-
-1. Does the context directly or indirectly address the question?
-2. Is the information detailed and specific enough to answer the question without needing external data?
-3. Is the answer likely to be correct and up-to-date based on the provided context?
-
-Respond only with "Yes" if all three conditions are satisfied. Otherwise, respond with "No".
-
-    """)
+Respond with ONLY one word. Do NOT include any bullet points, explanations, or formatting.
+""")
 
     formatted = grader_prompt.invoke({"question": question, "context": context})
     response = llm.invoke(formatted)
@@ -83,7 +81,8 @@ Respond only with "Yes" if all three conditions are satisfied. Otherwise, respon
     return state
 
 def route_after_grader(state: AgentState) -> str:
-    if state.get("grader_decision") == "evet":
+
+    if state.get("grader_decision") == "yes":
         return "llm_rag"
     else:
         return "web_search"
