@@ -26,7 +26,9 @@
 🔤 **Language Matching**: LLM responds in the same language as the user question  
 📚 **Embedding**: `nomic-embed-text` (via Ollama)  
 🧠 **Graph Architecture**:  
-(graph.png)
+
+
+![Test Image 1](https://github.com/fgunestas/RAG_Project/blob/main/graph.png)
 
 📓 **Demo Notebook**: 📖 [Jupyter Notebooks](https://nbviewer.org/github/fgunestas/RAG_Project/blob/main/test_notebook.ipynb)
 
