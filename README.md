@@ -39,3 +39,42 @@
 To build a **flexible, extensible, and fully local RAG pipeline** that can extract meaningful insights from documents, access real-time web data when needed, and support multilingual interactions.
 
 ---
+## 🚧 Build & Run
+
+### 1️⃣ Requirements
+
+#### 🐍 Python (>=3.10) and pip
+
+> If Python is not installed, download the appropriate version for your system from [python.org](https://www.python.org/downloads/).
+```bash
+python --version
+# Must be Python 3.10 or later
+```
+
+#### 🧠 Ollama (for local LLM)
+ Ollama must be installed to run local models like Mistral 7B.\
+>[➤Download Ollama](https://ollama.com/download)
+
+#### 🌐 Travil API Key (for Web Search)
+If you want to enable web search fallback, you need a Travil API key.\
+Visit [travil.dev](travil.dev)\
+Sign up and create an API key
+
+### 2️⃣ Clone the Repository
+```bash
+git clone https://github.com/fgunestas/RAG_Project.git
+cd RAG_Project
+```
+### 3️⃣ Create a .env File
+Create a .env file in the root directory with the following content:
+```bash
+TRAVIL_API_KEY=your_travil_api_key_here
+```
+### 5️⃣ Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+7️⃣ Run the MCP server
+```bash
+python mcp_server.py
+```
