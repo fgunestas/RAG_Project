@@ -7,5 +7,6 @@ if __name__ == "__main__":
             break
         result = search_agent.invoke({"input": user_input})
         print("\n=== Sonuç ===")
-        print(result)
+        print(result['final_output'])
+
         #beşiktaş fenerbahçe basketbol final seriisinde son durum ne
