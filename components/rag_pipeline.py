@@ -1,201 +1,90 @@
 from langchain_ollama import ChatOllama
-from langchain_core.runnables import RunnableLambda
 from langgraph.graph import StateGraph
 from typing import TypedDict
 from components.retriever import get_vectorstore
-from components.search_tool import web_search
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-import requests
-
-
-
-
+from langchain.tools import Tool
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+import asyncio
+import json
+import re
 
 llm = ChatOllama(
-    model="mistral:7b-instruct",
+    model="mistral:7b",
     base_url="http://localhost:11434"
 )
-vector_store= get_vectorstore()
-retreiver = vector_store.as_retriever(search_type="similarity", k=5)
 
-# Prompt Template
+vector_store = get_vectorstore()
+retriever = vector_store.as_retriever(search_type="similarity", k=5)
+
 prompt = ChatPromptTemplate.from_messages([
     ("system", "You are an intelligent multilingual assistant. Respond in the same language as the user's question."),
     MessagesPlaceholder(variable_name="chat_history"),
     ("human", "User Question:\n{question}\n\nContext:\n{context}\n\nBased on the context, answer accurately and clearly in the user's language. If the context is insufficient, say so.")
 ])
 
-
-# State
 class AgentState(TypedDict):
     input: str
-    llm_output: str
-    search_output: str
+    rag_output:list
     context: str
-    routing: str
-    chat_history: list  # LangChain message list
-    planned_input:str
-    final_output:str
+    chat_history: list
+    planned_input: str
+    final_output: str
+    web_output:str
 
-
-# === Nodes ===
-
-
-def llm_rag_node(state: AgentState) -> AgentState:
-    print(">> RAG Node çalışıyor...")
-    query = state["input"]
-    history = state.get("chat_history", [])
-
-    response = requests.post(
-        "http://localhost:8000/mcp",
-        json={
-            "jsonrpc": "2.0",
-            "method": "rag_search",
-            "params": {"query": query,"chat_history": history},
-            "id": 123
-        }
-    )
-
-    context = response.json()["result"]["context"]
-    state["llm_output"] = context
-
-    return state
-
-def llm_node(state: AgentState) -> AgentState:
+# MCP TOOL CALL FUNCTIONS
+async def rag_tool_func(state: AgentState) -> AgentState:
     question = state["input"]
-    context = state.get("search_output", "")
     chat_history = state.get("chat_history", [])
+    async with streamablehttp_client("http://localhost:8000/mcp") as (read, write, _):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            result = await session.call_tool("rag_search", arguments={"query": question,'chat_history':chat_history})
 
+            state['rag_output']=result.content
+            return state
 
+async def web_tool_func(state: AgentState) -> AgentState:
 
-    full_prompt = prompt.invoke({
-        "question": question,
-        "context": context,
-        "chat_history":chat_history
+    question = state["input"]
 
-    })
+    async with streamablehttp_client("http://localhost:8000/mcp") as (read, write, _):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            result = await session.call_tool("web_search", arguments={"query": question})
+            state["web_output"] = result.content
 
-    llm_response = llm.invoke(full_prompt)
-    #adding current response to memmory
-
-    state["llm_output"] = llm_response.context
-    return state
-
-from langchain.tools import Tool
-
-def rag_tool_func(query: str,history: list) -> str:
-    response = requests.post(
-        "http://localhost:8000/mcp",
-        json={
-            "jsonrpc": "2.0",
-            "method": "rag_search",
-            "params": {"query": query,"chat_history": history},
-            "id": 2
-        }
-    )
-    return response.json()["result"]["context"]
+            return state
 
 rag_tool = Tool.from_function(
-    func=rag_tool_func,
+    func=lambda q: asyncio.run(rag_tool_func(q)),
     name="rag_search",
     description="Useful for retrieving context from internal documents."
 )
+
 web_tool = Tool.from_function(
-    func=rag_tool_func,
+    func=lambda s: asyncio.run(web_tool_func(s)),
     name="web_search",
     description=(
-    "Use this tool to search the internet for recent or real-time information. "
-    "Ideal for answering questions related to current events, news updates, trending topics, weather, or any facts that may have changed over time. "
-    "Do not use this for historical, theoretical, or static information."
-)
-)
-
-def search_node(state: AgentState) -> AgentState:
-    question = state["input"]
-
-    response = requests.post(
-        "http://localhost:8000/mcp",
-        json={
-            "jsonrpc": "2.0",
-            "method": "web_search",
-            "params": {"query": question},
-            "id": 2
-        }
+        "Use this tool to find current or recent factual information from the internet. Ideal for news, sports scores, weather, or recent events."
+        "Ideal for answering questions related to current events, news updates, trending topics, weather, or any facts that may have changed over time. "
+        "Do not use this for historical, theoretical, or static information."
     )
-    context=response.json()["result"]["rows"]
+)
 
-    state["search_output"] = context
-    return state
-
-def manager_node(state: AgentState) -> AgentState:
-    print("routing...")
-    router_prompt = ChatPromptTemplate.from_messages([
-        ("system",
-         "You are a routing agent in a multi-agent system.\n"
-         "Your task is to decide which specialized agent should handle the user's question.\n\n"
-         "Decision rules:\n"
-         "- route: rag        → If the question is about theoretical or conceptual information related to Kendo\n"
-         "                     (e.g., techniques, history, rules, training, terminology)\n"
-         "- route: web_search → If the question requires current, factual, or real-time information from the internet\n"
-         "                     (e.g., latest sports results, recent news, weather, live events)\n"
-         "- route: base_llm   → For all other topics such as general knowledge, personal questions,\n"
-         "                     philosophical or humorous queries, social conversation, or chat memory use.\n\n"
-         "Only respond with one of the following, no explanation:\n"
-         "route: rag\n"
-         "route: web_search\n"
-         "route: base_llm"
-         ),
-        MessagesPlaceholder(variable_name="chat_history"),
-        ("human", "Question: {question}\n\nContext:\n{context}\n\nSearch Output:\n{search_output}")
-    ])
-
-    question = state["input"]
-    context = state.get("context", "")
-    search_output = state.get("search_output", "")
-    chat_history = state.get("chat_history", [])
-
-
-    full_prompt = router_prompt.invoke({
-        "question": question,
-        "context": context,
-        "search_output": search_output,
-        "chat_history": chat_history
-    })
-    response = llm.invoke(full_prompt)
-    route = response.content.strip().lower()
-    print(route)
-    if "rag" in route:
-        return "llm_rag"
-    elif "web" in route:
-        return "web_search"
-    else:
-        print("else")
-        return "base_llm"
-
+llm_with_tools = llm.bind_tools([rag_tool, web_tool])
 
 def planner_node(state: AgentState) -> AgentState:
-    print("planner")
-
     input_text = state.get("input", "").strip()
-
-
     planned_query = input_text.lower()
-
     state["planned_input"] = planned_query
-
     return state
+
 def output_node(state: AgentState) -> AgentState:
-    print(">> Output Node çalışıyor...")
-
     question = state.get("input", "")
-    agent_output = (
-        state.get("llm_output") # RAG or base LLM response
-        or state.get("search_output") # web search response
-    )
-
-
+    agent_output = state.get("web_output") or state.get("rag_output")
     chat_history = state.get("chat_history", [])
-
 
     final_prompt = ChatPromptTemplate.from_template("""
 Given the user's question, the previous output generated by an agent (RAG, base model, or web search), 
@@ -217,49 +106,75 @@ Conversation History (optional):
 Now write the final response for the user:
 """)
 
-
     full_prompt = final_prompt.invoke({
         "question": question,
         "agent_output": agent_output,
         "chat_history": chat_history
     })
-
-
     final_response = llm.invoke(full_prompt)
-
-
     state["final_output"] = final_response.content
     return state
 
+def format_web_results(results: list[dict]) -> str:
+    formatted = []
+    for r in results:
+        title = r.get("title", "")
+        content = r.get("content", "")
+        url = r.get("url", "")
+        formatted.append(f"Title: {title}\nContent: {content}\nSource: {url}")
 
-# === Build Graph ===
+    return "\n\n---\n\n".join(formatted)
+
+def llm_tool_node(state: AgentState) -> AgentState:
+    question = state["planned_input"]
+    chat_history = state.get("chat_history", [])
+
+    tool_prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are a helpful assistant. Use tools if necessary."),
+        MessagesPlaceholder(variable_name="chat_history"),
+        ("human", "{question}")
+    ])
+
+    prompt_value = tool_prompt.invoke({
+        "question": question,
+        "chat_history": chat_history
+    })
+
+    llm_response = llm_with_tools.invoke(prompt_value)
+    match = re.search(r'\[.*\]', llm_response.content, re.DOTALL)
+
+    json_part = match.group(0)
+    parsed = json.loads(json_part)
+    parsed=parsed[0]
+    if isinstance(parsed, dict) and parsed.get("name"):
+        tool_call = parsed
+        tool_name = tool_call["name"]
+
+
+        if tool_name == "web_search":
+            tool_result = web_tool.func(state)
+            tool_result = json.loads(tool_result['web_output'][0].text)
+            agent_output_text =format_web_results(tool_result["rows"]["results"])
+            state["web_output"] = agent_output_text
+
+
+        elif tool_name == "rag_search":
+            tool_result = rag_tool.func(state)
+            tool_result=json.loads(tool_result['rag_output'][0].text)
+            state["rag_output"] = tool_result['context']
+
+        else:
+            state["final_output"] = f"[!] Unknown tool: {tool_name}"
+            return state
+
+    return state
+
 graph = StateGraph(AgentState)
-
-graph.add_node("planner_llm", planner_node)
-graph.add_node("llm_rag", llm_rag_node)
-graph.add_node("base_llm", llm_node)
-graph.add_node("web_search", search_node)
-graph.add_node("output_llm", output_node)
-
-
-
-graph.set_entry_point("planner_llm")
-graph.add_conditional_edges(
-    "planner_llm",
-    RunnableLambda(manager_node),
-    {
-        "llm_rag": "llm_rag",
-        "web_search": "web_search",
-        "base_llm": "base_llm"
-    }
-)
-graph.add_edge("web_search", "output_llm")
-graph.add_edge("llm_rag", "output_llm")
-graph.add_edge("base_llm", "output_llm")
-
-graph.set_finish_point("output_llm")
-
-
+graph.set_entry_point("planner")
+graph.add_node("planner", planner_node)
+graph.add_node("llm_tool_node", llm_tool_node)
+graph.add_node("output", output_node)
+graph.add_edge("planner", "llm_tool_node")
+graph.add_edge("llm_tool_node", "output")
+graph.set_finish_point("output")
 search_agent = graph.compile()
-search_agent.get_graph().print_ascii()
-print(search_agent.get_graph().draw_mermaid())

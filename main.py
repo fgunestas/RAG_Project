@@ -9,4 +9,4 @@ if __name__ == "__main__":
         print("\n=== Sonuç ===")
         print(result['final_output'])
 
-        #beşiktaş fenerbahçe basketbol final seriisinde son durum ne
+        #dünkü beşiktaş maçı kaç kaç bitti

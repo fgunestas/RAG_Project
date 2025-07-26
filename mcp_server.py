@@ -1,17 +1,18 @@
-from flask import Flask, request, jsonify
 import requests
 from dotenv import load_dotenv
 import os
 from components.retriever import get_vectorstore
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
+from mcp.server.fastmcp import FastMCP
 
 load_dotenv()
 
-app = Flask(__name__)
 
 vector_store= get_vectorstore()
-retreiver = vector_store.as_retriever(search_type="similarity", k=5)
+retriever = vector_store.as_retriever(search_type="similarity", k=5)
+llm = ChatOllama(model="mistral:7b", base_url="http://localhost:11434")
+
 rag_prompt = ChatPromptTemplate.from_template("""
 You are a helpful assistant. Always reply in the same language as the user question.
 
@@ -28,6 +29,35 @@ Answer based only on the context above. If the context is insufficient, politely
 """)
 
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+
+mcp = FastMCP("MyRAGServer")
+
+@mcp.tool()
+def web_search(query: str) -> dict:
+    """Performs a web search using Tavily API."""
+    response = requests.post(
+        "https://api.tavily.com/search",
+        json={
+            "api_key": TAVILY_API_KEY,
+            "query": query,
+            "max_results": 5,
+        },
+    )
+    response.raise_for_status()
+    return {"rows": response.json()}
+
+@mcp.tool()
+def rag_search(query: str, history: str = "") -> dict:
+    """Performs RAG-style retrieval and LLM response generation."""
+    docs = retriever.invoke(query)
+    context = "\n\n".join([doc.page_content for doc in docs])
+    result = llm.invoke(rag_prompt.invoke({"query": query, "context": context, "chat_history": history}))
+    return {"context": result.content}
+
+if __name__ == "__main__":
+    mcp.run(transport="streamable-http")
+
+
 RAG_MANIFEST = {
     "name": "rag_search",
     "description": "Performs RAG-style semantic document retrieval.",
@@ -56,72 +86,3 @@ WEB_SEARCH_MANIFEST = {
     "required": ["query"]
   }
 }
-llm = ChatOllama(
-    model="mistral:7b-instruct",
-    base_url="http://localhost:11434"
-)
-
-@app.route("/mcp", methods=["POST"])
-def handle_mcp():
-    req = request.json
-    method = req.get("method")
-    params = req.get("params", {})
-    request_id = req.get("id", 1)
-
-    if method == "mcp.get_tool_manifest":
-        return jsonify({
-            "jsonrpc": "2.0",
-            "id": request_id,
-            "result": [WEB_SEARCH_MANIFEST, RAG_MANIFEST]
-        })
-
-
-    elif method == "web_search":
-
-        search_query = params.get("query", "")
-
-        response = requests.post(
-
-            "https://api.tavily.com/search",
-
-            json={
-
-                "api_key": TAVILY_API_KEY,
-
-                "query": search_query,
-
-                "max_results": 5
-
-            }
-
-        )
-
-        response.raise_for_status()
-
-        results = response.json()
-
-        return jsonify({
-
-            "jsonrpc": "2.0",
-
-            "id": request_id,
-
-            "result": {"rows": results}
-
-        })
-    elif method == "rag_search":
-        query = params.get("query", "")
-        docs = retreiver.invoke(query)
-        context = "\n\n".join([doc.page_content for doc in docs])
-        history = params.get("history", "")
-        response = llm.invoke(rag_prompt.invoke({"query": query, "context": context, "chat_history": history}))
-        result = response.content
-
-        return jsonify({
-            "jsonrpc": "2.0",
-            "id": request_id,
-            "result": {"context": result}
-        })
-
-if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8000)
