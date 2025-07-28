@@ -1,15 +1,16 @@
 <h1 align="center">🧠 Smart RAG Agent Powered by LangGraph</h1>
 <p align="center">
-    An intelligent information retrieval system powered by LangChain + LangGraph + Ollama, working with your local PDF data. <br>
-    Includes web search integration, multilingual support, and document grading for a complete end-to-end solution.
+    An intelligent multi-agent RAG system using LangChain, LangGraph, and Ollama with tool-calling support. <br>
+    Automatically chooses between web search, internal document retrieval, or base LLM responses with no need for a manual router node.
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/LangChain-0.1.x-blue?logo=python">
-  <img src="https://img.shields.io/badge/LangGraph-Router%20+%20Grader%20Graph-9cf?logo=graphql">
-  <img src="https://img.shields.io/badge/Ollama-Mistral%207B-success?logo=chatbot">
+  <img src="https://img.shields.io/badge/LangGraph-Tool%20Calling%20Graph-9cf?logo=graphql">
+  <img src="https://img.shields.io/badge/Ollama-Mistral%207B%20v0.3-success?logo=chatbot">
   <img src="https://img.shields.io/badge/FAISS-Vector%20Search-brightgreen">
   <img src="https://img.shields.io/badge/WebSearch-Travil-red?logo=google">
+  <img src="https://img.shields.io/badge/Tool%20Calling-Auto-dodgerblue">
   <img src="https://img.shields.io/badge/MultiLang-Supported-lightgrey?logo=translate">
 </p>
 
@@ -17,15 +18,20 @@
 
 ### 🚀 Features
 
-📂 **Data Source**: PDF files located in the `data/` directory  
-🧩 **Processing Flow**: PDF → Chunk → Embed → FAISS → Retrieve → Grade → Route → Generate  
-🖥️ **Fully Local**: Can run offline without internet (web search is optional)  
-🔎 **Retriever Evaluation**: Document relevance is evaluated by a `grader` node  
-🌍 **Web Search Integration**: External knowledge fetching via `Travil` API + `LangChain MCP`  
-🧠 **LLM Model**: `mistral:7b-instruct` via Ollama  
-🔤 **Language Matching**: LLM responds in the same language as the user question  
-📚 **Embedding**: `nomic-embed-text` (via Ollama)  
-🧠 **Graph Architecture**:  
+📂 **Data Source**: PDF files placed under `data/` directory  
+🧠 **Automatic Tool Calling**: LLM determines whether to call internal retrieval (`rag_search`), web search (`web_search`), or answer directly  
+🧩 **MCP-Driven Planning**: MCP handles routing logic based on system state and planner LLM output  
+🧠 **LLM Model**: `mistral:7b` (with tool-calling) via Ollama  
+🔗 **Function Calling Compatible**: Uses [Mistral 7B v0.3](https://ollama.com/library/mistral) with Ollama’s raw mode  
+🌍 **Web Search Integration**: External fallback via `Travil API`  
+📚 **Embedding Model**: `nomic-embed-text` (Ollama)  
+💬 **Language Awareness**: Answers in the language of the user prompt  
+📊 **Graph Logic**: Tool-calling-based LangGraph structure — no manual routing required  
+📓 **Notebook Demo**: [▶️ Test Notebook](https://nbviewer.org/github/fgunestas/RAG_Project/blob/main/test_notebook.ipynb)
+
+---
+
+### 🧠 Agent Structure
 
 
 ![Test Image 1](https://github.com/fgunestas/RAG_Project/blob/main/graph.png)
